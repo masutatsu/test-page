@@ -1,0 +1,558 @@
+<html>
+<title>
+運営大好き！
+</title>
+
+
+<script>
+/*
+	15パズル
+
+	2010-06-14,2014-04-19 創作プログラミングの街
+
+	ゲーム画面表示用のHTMLタグやスタイルシート設定などすべてコードに含まれているので、scriptタグで貼り付けるだけで実行できます
+*/
+
+
+
+
+
+var fjs15pzlCellValue = Array();
+
+var fjs15pzlCellValueCNV;
+
+	
+
+
+
+
+
+
+var fjs15pzlGameState;
+var fjs15pzlCounter;
+var fjs15pzlBestMoves;
+
+fjs15pzlInit();
+
+// 初期化
+function fjs15pzlInit() {
+
+	var html = '';
+
+	html = html + '<div style="padding: 0px; margin-top: 0px; margin-bottom: 0px; margin-left: auto; margin-right: auto; width: 216px; background: #00cccc;">' + "\n";
+
+	html = html + '<div style="padding-left: 0px; padding-right: 0px; padding-top: 4px; padding-bottom: 4px; margin: 0px; width: 216px; background: #330066; color: #ffffff; text-align: center; font-size: 18px; font-family: monospace;">15パズル</div>' + "\n";
+
+	html = html + '<div id="fjs15pzlMessage" style="padding-left: 0px; padding-right: 0px; padding-top: 2px; padding-bottom: 2px; margin: 0px; width: 216px; background: #ccffff; text-align: center; font-size: 16px; font-family: monospace;">開始ボタンで開始</div>' + "\n";
+
+	html = html + '<table id="fjs15pzlTable" style="padding: 0; margin: 0; background: #000033; position: relative; left: 1px;" cellspacing="1" cellpadding="0">' + "\n";
+
+	// セル状態配列初期化
+	for (i = 0;i < 4;i++) {
+
+		html = html + '<tr style="padding: 0; margin: 0;">' + "\n";
+
+		for (j = 0;j < 4;j++) {
+
+			html = html + '<td id="fjs15pzlcell' + new String(j) + new String(i) + '" style="padding: 0; margin: 0; width: 52px; height: 52px;"></td>' + "\n";
+
+			fjs15pzlCellValue[j + i * 4] = 1 + j + (i * 4);
+
+
+			
+			
+		}
+
+		html = html + '</tr>' + "\n";
+
+	}
+
+	html = html + "</table>\n";
+
+	html = html + '<div style="padding: 0px; margin: 0px; text-align: center;">';
+
+	html = html + '<p style="margin: 0; padding: 10px;"><form name="fjs15pzlControlForm" style="margin: 0; padding: 0; font-size: 16px;"><input type="radio" name="fjs15pzlLevel" value="1">初級 <input type="radio" name="fjs15pzlLevel" value="2">中級 <input type="radio" name="fjs15pzlLevel" value="3">上級</form></p>';
+
+	html = html + '<p style="margin: 0; padding: 8px;"><button style="padding: 2px; margin: 0px; font-size: 18px;" onClick="fjs15pzlStartClick()">開 始</button></p>';
+	html = html + "</div>\n";
+
+	html = html + "</div>\n";
+
+	document.write(html);
+
+	document.fjs15pzlControlForm.fjs15pzlLevel[0].checked = true;
+
+	fjs15pzlGameState = 0;
+	fjs15pzlCounter = 0;
+
+	fjs15pzlDraw();
+
+}
+
+// 開始ボタンクリック
+function fjs15pzlStartClick() {
+
+	// クリアアニメ中なら戻る
+	if (fjs15pzlGameState >= 9 && fjs15pzlGameState != 14) {
+		return;
+	}
+
+	var clickNum = 1;
+
+	fjs15pzlGameState = 1;
+
+	// ゲーム状態（難易度）設定
+	for (i = 0;i < 3;i++) {
+		if (document.fjs15pzlControlForm.fjs15pzlLevel[i].checked) {
+			fjs15pzlGameState = i + 1;
+		}
+	}
+
+	// 難易度に応じてクリック処理回数決定
+	switch (fjs15pzlGameState) {
+
+	case 1:
+
+		clickNum = 10;
+
+		break;
+
+	case 2:
+
+		clickNum = 20;
+
+		break;
+
+	case 3:
+
+		clickNum = 40;
+
+		break;
+
+	}
+
+	// 配列初期化
+	for (i = 0;i < 16;i++) {
+		fjs15pzlCellValue[i] = 1 + i;
+	}
+
+	// クリック処理を繰り返して配列をかき混ぜる
+	for (i = 0;i < clickNum;i++) {
+		while (!fjs15pzlCellPoint(Math.floor(Math.random() * 4), Math.floor(Math.random() * 4)));
+	}
+
+	// 初期配置と同じになるのを防ぐ
+	while (fjs15pzlisClear(fjs15pzlCellValue)) {
+		fjs15pzlCellPoint(Math.floor(Math.random() * 4), Math.floor(Math.random() * 4));
+	}
+
+	// 最短手数を算出
+	fjs15pzlBestMoves = fjs15pzlBestCount(fjs15pzlCellValue);
+
+	// 手数カウンタ初期化
+	fjs15pzlCounter = 0;
+
+	fjs15pzlDraw();
+
+}
+
+// セルクリック時
+function fjs15pzlCellClick(cx, cy) {
+
+	// ゲーム中でないか移動不可なら戻る
+	if (fjs15pzlGameState == 0 || fjs15pzlGameState >= 9 || !fjs15pzlCellPoint(cx, cy)) {
+		return;
+	}
+
+	// 手数カウンタ更新
+	fjs15pzlCounter++;
+
+	// クリアしたらゲームをクリア状態に
+	if (fjs15pzlisClear(fjs15pzlCellValue)) {
+
+		fjs15pzlGameState = 9;
+
+		fjs15pzlDraw();
+
+		setTimeout("fjs15pzlAnime()", 100);
+
+		return;
+
+	}
+
+	fjs15pzlDraw();
+
+}
+
+// クリア判定
+function fjs15pzlisClear(board) {
+
+	var clear = true;
+
+	// クリア判定
+	for (var i = 1;i <= 16;i++) {
+		if (board[i - 1] != i) {
+
+			clear = false;
+
+			break;
+
+		}
+	}
+
+	return clear;
+
+}
+
+// クリック処理
+function fjs15pzlCellPoint(cx, cy) {
+
+	var index = cx + cy * 4;
+
+	if (cx < 0 || cx > 3 || cy < 0 || cy > 3 || fjs15pzlCellValue[index] == 16) {
+		return false;
+	}
+
+	if (cy > 0 && fjs15pzlCellValue[cx + (cy - 1) * 4] == 16) {
+
+		tmp = fjs15pzlCellValue[cx + (cy - 1) * 4];
+		fjs15pzlCellValue[cx + (cy - 1) * 4] = fjs15pzlCellValue[cx + cy * 4];
+		fjs15pzlCellValue[cx + cy * 4] = tmp;
+
+		return true;
+
+	}
+
+	if (cy < 3 && fjs15pzlCellValue[cx + (cy + 1) * 4] == 16) {
+
+		tmp = fjs15pzlCellValue[cx + (cy + 1) * 4];
+		fjs15pzlCellValue[cx + (cy + 1) * 4] = fjs15pzlCellValue[cx + cy * 4];
+		fjs15pzlCellValue[cx + cy * 4] = tmp;
+
+		return true;
+
+	}
+
+	if (cx > 0 && fjs15pzlCellValue[(cx - 1) + cy * 4] == 16) {
+
+		tmp = fjs15pzlCellValue[(cx - 1) + cy * 4];
+		fjs15pzlCellValue[(cx - 1) + cy * 4] = fjs15pzlCellValue[cx + cy * 4];
+		fjs15pzlCellValue[cx + cy * 4] = tmp;
+
+		return true;
+
+	}
+
+	if (cx < 3 && fjs15pzlCellValue[(cx + 1) + cy * 4] == 16) {
+
+		tmp = fjs15pzlCellValue[(cx + 1) + cy * 4];
+		fjs15pzlCellValue[(cx + 1) + cy * 4] = fjs15pzlCellValue[cx + cy * 4];
+		fjs15pzlCellValue[cx + cy * 4] = tmp;
+
+		return true;
+
+	}
+
+	return false;
+
+}
+
+function fjs15pzlBestCount(board) {
+
+	var clear = false;
+	var num = 0;
+
+	var tree = new Array();
+
+	tree[0] = new Array();
+	tree[0][0] = board.slice(0);
+
+
+	var clear = false;
+	var level = 0;
+
+	var i;
+
+	do {
+
+		level++;
+
+		fjs15pzlMakeNextTreeBoardList(tree, level);
+
+		for (i = 0;i < tree[level].length;i++) {
+			if (fjs15pzlisClear(tree[level][i])) {
+
+				clear = true;
+
+				break;
+
+			}
+		}
+
+		if (level >= 80) {
+			clear = true;
+		}
+
+	} while(!clear);
+
+	return level;
+
+}
+
+function fjs15pzlMakeNextTreeBoardList(tree, level) {
+
+	var i;
+
+	tree[level] = new Array();
+
+	for (i = 0;i < tree[level - 1].length;i++) {
+
+		var list = fjs15pzlGetNextBoardList(tree[level - 1][i]);
+
+		for (j = 0;j < list.length;j++) {
+			tree[level].push(list[j]);
+		}
+
+	}
+
+}
+
+function fjs15pzlGetNextBoardList(board) {
+
+	var i, j;
+	var space = 0;
+
+	var result = new Array();
+
+	for (i = 0;i < 16;i++) {
+		if (board[i] == 16) {
+			space = i;
+		}
+	}
+
+	if (space < 12) {
+
+		var item = board.slice(0);
+
+		item[space] = item[space + 4];
+		item[space + 4] = 16;
+
+		result.push(item);
+
+	}
+
+	if (space >= 4) {
+
+		var item = board.slice(0);
+
+		item[space] = item[space - 4];
+		item[space - 4] = 16;
+
+		result.push(item);
+
+	}
+
+	if (space % 4 > 0) {
+
+		var item = board.slice(0);
+
+		item[space] = item[space - 1];
+		item[space - 1] = 16;
+
+		result.push(item);
+
+	}
+
+	if (space % 4 < 3) {
+
+		var item = board.slice(0);
+
+		item[space] = item[space + 1];
+		item[space + 1] = 16;
+
+		result.push(item);
+
+	}
+
+	return result;
+
+}
+
+function fjs15pzlDraw() {
+
+	// メッセージ表示領域の参照取得
+	var message = document.getElementById('fjs15pzlMessage');
+
+	// ゲーム状態に応じてメッセージ表示
+	switch (fjs15pzlGameState) {
+
+	case 0:
+
+		message.innerHTML = "開始ボタンで開始";
+
+		break;
+
+	case 1:
+	case 2:
+	case 3:
+
+		message.innerHTML = new String(fjs15pzlCounter + 1) + "手目（最短" + fjs15pzlBestMoves + "手)";
+
+		break;
+
+	case 9:
+	case 10:
+	case 11:
+	case 12:
+	case 13:
+	case 14:
+
+		message.innerHTML = new String(fjs15pzlCounter) + "手でクリア（最短" + fjs15pzlBestMoves + "手)";
+
+		break;
+
+	}
+
+	var cellRGB = '#e0e0c0';
+
+	// クリアアニメ中ならセルの背景色設定
+	switch (fjs15pzlGameState) {
+
+	case 10:
+
+		cellRGB = '#b0b0b0';
+
+		break;
+
+	case 11:
+	case 13:
+
+		cellRGB = '#f0f0d8';
+
+		break;
+
+	case 12:
+
+		cellRGB = '#ffffff';
+
+		break;
+
+	}
+
+
+
+
+
+
+
+	// セル状態描画
+	
+	
+				
+
+	
+	
+	
+	
+	for (i = 0;i < 4;i++) {
+		for (j = 0;j < 4;j++) {
+
+			var cell = document.getElementById('fjs15pzlcell' + new String(j) + new String(i));
+
+			if (fjs15pzlCellValue[j + i * 4] == 16) {
+				cell.innerHTML = '';
+			} else {
+			
+			
+						if (1 + j + (i * 4) == 1){
+			fjs15pzlCellValueCNV = "幻";
+			}else if(1 + j + (i * 4) == 2){
+			fjs15pzlCellValueCNV = "塔";
+			}else if(1 + j + (i * 4) == 3){
+			fjs15pzlCellValueCNV = "大";
+			}else if(1 + j + (i * 4) == 4){
+			fjs15pzlCellValueCNV = "好";
+			}else if(1 + j + (i * 4) == 5){
+			fjs15pzlCellValueCNV = "き";
+			}else if(1 + j + (i * 4) == 6){
+			fjs15pzlCellValueCNV = "！";
+			}else if(1 + j + (i * 4) == 7){
+			fjs15pzlCellValueCNV = "運";
+			}else if(1 + j + (i * 4) == 8){
+			fjs15pzlCellValueCNV = "営";
+			}else if(1 + j + (i * 4) == 9){
+			fjs15pzlCellValueCNV = "愛";
+			}else if(1 + j + (i * 4) == 10){
+			fjs15pzlCellValueCNV = "し";
+			}else if(1 + j + (i * 4) == 11){
+			fjs15pzlCellValueCNV = "て";
+			}else if(1 + j + (i * 4) == 12){
+			fjs15pzlCellValueCNV = "る";
+			}else if(1 + j + (i * 4) == 13){
+			fjs15pzlCellValueCNV = "！！";
+			}else if(1 + j + (i * 4) == 14){
+			fjs15pzlCellValueCNV = "by";
+			}else if(1 + j + (i * 4) == 15){
+			fjs15pzlCellValueCNV = "皆";
+			}else{
+			fjs15pzlCellValueCNV = "";
+			}
+			
+			
+			
+				cell.innerHTML = '<button style="padding: 0; margin: 0; background: ' + cellRGB + '; width: 52px; height: 52px; font-size: 24px; font-family: monospace;" onClick="fjs15pzlCellClick(' + j + ', ' + i + ')">' + fjs15pzlCellValueCNV + '</button>';
+			}
+
+		}
+	}
+
+}
+
+function fjs15pzlAnime() {
+
+	switch (fjs15pzlGameState) {
+
+	case 9:
+
+		fjs15pzlGameState = 10;
+
+		setTimeout("fjs15pzlAnime()", 50);
+
+		break;
+
+	case 10:
+
+		fjs15pzlGameState = 11;
+
+		setTimeout("fjs15pzlAnime()", 100);
+
+		break;
+
+	case 11:
+
+		fjs15pzlGameState = 12;
+
+		setTimeout("fjs15pzlAnime()", 300);
+
+		break;
+
+	case 12:
+
+		fjs15pzlGameState = 13;
+
+		setTimeout("fjs15pzlAnime()", 300);
+
+		break;
+
+	case 13:
+
+		fjs15pzlGameState = 14;
+
+		break;
+
+	}
+
+	fjs15pzlDraw();
+
+}
+</script>
